@@ -184,3 +184,14 @@ ggplot(word_count, aes(x = reorder(word, n), y = n, fill = location)) +
 ```
 
 -  Answer: 
+
+Similarities: 
+"chicago" is the only word that is among the most common words in all three locations, which likely because all three are located within the city of Chicago.
+"park", "hyde", "kenwood", "south" are shared by Hyde Park and Kenwood.  
+"chicago", "street", "lake" are shared by Hyde Park and Oakland. 
+"chicago", "street", "community" are shared by Kenwood and Oakland. 
+
+Differences: 
+Besides the presence of different words at each location, two locations may share the same common word, but it appears with different counts. 
+For example, "Hyde" is common in both Hyde Park and Kenwood, with a frequency of over 60 in Hyde Park but just above 5 in Kenwood. 
+"Chicago" is the common word across all locations. However, its frequency is more than 30in Hyde Park, but only around 5 in Kenwood and 10 in Oakland.
