@@ -1,6 +1,7 @@
 ---
 title: "Assignment 3"
 subtitle: "Due at 11:59pm on October 15."
+author: "Yao Sun"
 format: pdf
 editor: visual
 ---
@@ -12,6 +13,11 @@ library(xml2)
 library(rvest)
 library(tidyverse)
 ```
+
+## Provide the link to the GitHub repository that containing the file.
+
+-  The name on the README.md is Homework-3. The link to the GitHub repository is
+https://github.com/YSun-umich/Homework-3.git
 
 ## Web Scraping
 
@@ -25,37 +31,79 @@ As a first step, read in the html page as an R object. Extract the tables from t
 
 Extract the "Historical population" table from the list and save it as another object. You can use subsetting via `[[…]]` to extract pieces from a list. Print the result.
 
+```{r}
+# Read in the html page
+html_page <- read_html("https://en.wikipedia.org/wiki/Grand_Boulevard,_Chicago")
+```
+
+```{r}
+# Extract the tables from the object then save the result
+tables <- html_page %>% html_table(fill = TRUE)
+```
+
+```{r}
+# Use str() to show the strucutre of the object 
+str(tables)
+```
+
+```{r}
+# Extract the "Historical population" table from the list
+histpop <- tables[[2]]
+print(histpop)
+```
+
 You will see that the table needs some additional formatting. We only want rows and columns with actual values (I called the table object `pop`).
 
 ```{r}
-# pop <- pop[2:10, -3]
-# pop
+histpop <- histpop[2:10, -3]
+histpop
 ```
 
 ## Expanding to More Pages
 
-That's it for this page. However, we may want to repeat this process for other community areas. The Wikipedia page https://en.wikipedia.org/wiki/Grand_Boulevard,\_Chicago has a section on "Places adjacent to Grand Boulevard, Chicago" at the bottom. Can you find the corresponding table in the list of tables that you created earlier? Extract this table as a new object.
+That's it for this page. However, we may want to repeat this process for other community areas. The Wikipedia page https://en.wikipedia.org/wiki/Grand_Boulevard,_Chicago has a section on "Places adjacent to Grand Boulevard, Chicago" at the bottom. Can you find the corresponding table in the list of tables that you created earlier? Extract this table as a new object.
+
+```{r}
+# Find the corresponding table of "Places adjacent to Grand Boulevard, Chicago" in the original list
+adjGB_tables <- tables[[3]]
+```
 
 Then, grab the community areas east of Grand Boulevard and save them as a character vector. Print the result.
 
+```{r}
+eastGB <- c("Oakland, Chicago", "Kenwood, Chicago", "Hyde Park, Chicago")
+print(eastGB)
+```
+
 We want to use this list to create a loop that extracts the population tables from the Wikipedia pages of these places. To make this work and build valid urls, we need to replace empty spaces in the character vector with underscores. This can be done with `gsub()`, or by hand. The resulting vector should look like this: "Oakland,\_Chicago" "Kenwood,\_Chicago" "Hyde_Park,\_Chicago"
+
+```{r}
+VLeastGB <- gsub(" ", "_", eastGB)
+print(VLeastGB)
+```
 
 To prepare the loop, we also want to copy our `pop` table and rename it as `pops`. In the loop, we append this table by adding columns from the other community areas.
 
 ```{r}
-# pops <- pop
+pops <- histpop
 ```
 
 Build a small loop to test whether you can build valid urls using the vector of places and pasting each element of it after `https://en.wikipedia.org/wiki/` in a for loop. Calling `url` shows the last url of this loop, which should be `https://en.wikipedia.org/wiki/Hyde_Park,_Chicago`.
+Finally, extend the loop and add the code that is needed to grab the population tables from each page. Add columns to the original table `pops` using `cbind()`.
 
 ```{r}
-# for(i in places_east) {
-#   url <- ...
-#   }
-# url
-```
+# Create the loop
+for(i in VLeastGB){
+  url <- paste0("https://en.wikipedia.org/wiki/", i, sep = "")
+  pages <- read_html(url)
+  tables <- pages %>% html_table(fill = TRUE)
+  histpop <- tables[[2]]
+  histpop <- histpop[2:10, -3]
+  pops <- cbind(pops, histpop)
+}
 
-Finally, extend the loop and add the code that is needed to grab the population tables from each page. Add columns to the original table `pops` using `cbind()`.
+print(url[length(url)])
+```
 
 ## Scraping and Analyzing Text Data
 
@@ -63,11 +111,29 @@ Suppose we wanted to take the actual text from the Wikipedia pages instead of ju
 
 First, scrape just the text without any of the information in the margins or headers. For example, for "Grand Boulevard", the text should start with, "**Grand Boulevard** on the [South Side](https://en.wikipedia.org/wiki/South_Side,_Chicago "South Side, Chicago") of [Chicago](https://en.wikipedia.org/wiki/Chicago "Chicago"), [Illinois](https://en.wikipedia.org/wiki/Illinois "Illinois"), is one of the ...". Make sure all of the text is in one block by using something like the code below (I called my object `description`).
 
+Using a similar loop as in the last section, grab the descriptions of the various communities areas. Make a tibble with two columns: the name of the location and the text describing the location.
+
 ```{r}
-# description <- description %>% paste(collapse = ' ')
+# Make a tibble with two columns: the name of the location and the text describing the location
+tibble <- tibble(location = character(), description = character())
+print(tibble)
 ```
 
-Using a similar loop as in the last section, grab the descriptions of the various communities areas. Make a tibble with two columns: the name of the location and the text describing the location.
+```{r}
+for(i in VLeastGB){
+  url <- paste0("https://en.wikipedia.org/wiki/", i)
+  page <- read_html(url)
+  description <- page %>% 
+    html_nodes(xpath = '//p') %>%
+    html_text() %>%
+    paste(collapse = ' ')
+    
+  tibble <- tibble %>% 
+    add_row(location = i, description = description)
+}
+
+print(tibble)
+```
 
 Let's clean the data using `tidytext`. If you have trouble with this section, see the example shown in <https://www.tidytextmining.com/tidytext.html>
 
@@ -77,4 +143,44 @@ library(tidytext)
 
 Create tokens using `unnest_tokens`. Make sure the data is in one-token-per-row format. Remove any stop words within the data. What are the most common words used overall?
 
+```{r}
+# Create token and make format one-token-per-row
+TDdescription <- tibble %>% unnest_tokens(word, description)
+```
+
+```{r}
+# Remove stopwords
+data("stop_words")
+```
+
+```{r}
+TDdescription <- TDdescription %>% anti_join(stop_words)
+
+TDdescription %>% count(word, sort = TRUE)
+```
+
+-  Answer: Top ten most common words are, part(84), hyde(75), chicago(50), kenwood(40), street(34), south(27), oakland(25), community(23), lake(23), and neighborhood(23). 
+
 Plot the most common words within each location. What are some of the similarities between the locations? What are some of the differences?
+
+```{r}
+library(ggplot2)
+
+word_count <- 
+  TDdescription %>%
+    group_by(location) %>%
+    count(word, sort = TRUE) %>% 
+    top_n(10)
+```
+
+```{r}
+ggplot(word_count, aes(x = reorder(word, n), y = n, fill = location)) + 
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~location, scales = "free") +
+    coord_flip() +
+    labs(y = "Number of Word Counts",
+         x = "Word",
+         title = "Plot of the Most Common Words within Each Location")
+```
+
+-  Answer: 
